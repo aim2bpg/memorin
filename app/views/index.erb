@@ -1,0 +1,20 @@
+<div class="container clearfix mt-2">
+  <a href="/memos/new"><input type="button" value="追加" class="btn btn-primary float-right"></a>
+</div>
+<div class='container'>
+  <% @memos.each do |memo| %>
+    <section class="mt-5">
+      <header>
+        <h3>
+          <a href="/memos/<%= memo.id%>"><%= memo.title %></a>
+        </h3>
+        <time datatime="<%= memo.created_at.to_s %>">
+            <%= memo.created_at.to_s %>
+        </time>
+      </header>
+      <div class="body">
+        <%= memo.body %>
+      </div>
+    </section>
+  <% end %>
+</div>
