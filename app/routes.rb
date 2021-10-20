@@ -18,11 +18,10 @@ class RoutesController < Sinatra::Base
     CrudController.store_memos(File.join(settings.db_folder, 'datafile'))
   end
 
-  # next practice use
-  # configure :production do
-  #   require_relative 'controllers/memos_controller'
-  #   CrudController.connect_db('memos_db', 'memos_table')
-  # end
+  configure :production do
+    require_relative 'controllers/memos_controller'
+    CrudController.connect_db('memos_db', 'memos_table')
+  end
 
   get '/' do
     @memos = CrudController.read_memo('all')
