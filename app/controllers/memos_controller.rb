@@ -4,9 +4,11 @@ require 'pg'
 
 # data-base use ver.
 module CrudController
-  def self.connect_db(db_name, table_name)
-    @conn = PG.connect(dbname: db_name)
-    @table_name = table_name
+  DB_NAME = 'memos_db'
+  TABLE_NAME = 'memos_table'
+
+  def self.connect_db
+    @conn = PG.connect(dbname: DB_NAME)
     create_table unless table_exist?
   end
 
@@ -14,52 +16,48 @@ module CrudController
     memo = Memo.new(title, body)
     prepare_name = 'create_memo'
     delete_if_exist(prepare_name)
-    create_memo_query = "INSERT INTO #{@table_name} (id, title, body, created_at) VALUES ($1, $2, $3, $4)"
+    create_memo_query =
+      "INSERT INTO #{TABLE_NAME} (id, title, body, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)"
     @conn.prepare(prepare_name, create_memo_query)
-    @conn.exec_prepared(prepare_name, [memo.id, title, body, memo.created_at])
+    @conn.exec_prepared(prepare_name, [memo.id, title, body, memo.created_at, memo.updated_at])
     memo
   end
 
-  # rubocop warning 'Method has too many lines. [xx/10]',so I split it.
-  def self.read_memo(id)
-    id == 'all' ? read_all_memo : read_one_memo(id)
-  end
-
   def self.read_all_memo
-    prepare_name = 'read_memo'
+    prepare_name = 'read_all_memo'
     delete_if_exist(prepare_name)
-    read_all_query = "SELECT * FROM #{@table_name}"
+    read_all_query = "SELECT * FROM #{TABLE_NAME}"
     @conn.prepare(prepare_name, read_all_query)
     memos = []
     @conn.exec_prepared(prepare_name).each do |memo|
-      memos << Memo.new(memo['title'], memo['body'], memo['created_at'], memo['id'])
+      memos << Memo.new(memo['title'], memo['body'], memo['created_at'], memo['id'], memo['updated_at'])
     end
     memos
   end
 
   def self.read_one_memo(id)
-    prepare_name = 'read_memo'
+    prepare_name = 'read_one_memo'
     delete_if_exist(prepare_name)
-    read_memo_query = "SELECT * FROM #{@table_name} WHERE id = $1"
+    read_memo_query = "SELECT * FROM #{TABLE_NAME} WHERE id = $1"
     @conn.prepare(prepare_name, read_memo_query)
     memo = @conn.exec_prepared(prepare_name, [id]).first
-    Memo.new(memo['title'], memo['body'], memo['created_at'], memo['id'])
+    Memo.new(memo['title'], memo['body'], memo['created_at'], memo['id'], memo['updated_at'])
   end
 
-  def self.update_memo(title, body, id)
-    memo = Memo.new(title, body, Time.now, id)
+  def self.update_memo(id, title, body)
+    memo = Memo.new(title, body, read_one_memo(id).created_at, id)
     prepare_name = 'update_memo'
     delete_if_exist(prepare_name)
-    update_memo_query = "UPDATE #{@table_name} SET (title, body, created_at) = ($2, $3, $4) WHERE id = $1"
+    update_memo_query = "UPDATE #{TABLE_NAME} SET (title, body, updated_at) = ($2, $3, $4) WHERE id = $1"
     @conn.prepare(prepare_name, update_memo_query)
-    @conn.exec_prepared(prepare_name, [id, title, body, memo.created_at])
+    @conn.exec_prepared(prepare_name, [id, title, body, memo.updated_at])
     memo
   end
 
   def self.delete_memo(id)
     prepare_name = 'delete_memo'
     delete_if_exist(prepare_name)
-    delete_memo_query = "DELETE FROM #{@table_name} WHERE id = $1"
+    delete_memo_query = "DELETE FROM #{TABLE_NAME} WHERE id = $1"
     @conn.prepare(prepare_name, delete_memo_query)
     @conn.exec_prepared(prepare_name, [id])
   end
@@ -76,7 +74,7 @@ module CrudController
   def self.table_exist?
     prepare_name = 'table_exist'
     delete_if_exist(prepare_name)
-    exist_table_query = "SELECT table_name FROM information_schema.tables WHERE table_name = '#{@table_name}'"
+    exist_table_query = "SELECT table_name FROM information_schema.tables WHERE table_name = '#{TABLE_NAME}'"
     @conn.prepare(prepare_name, exist_table_query)
     @conn.exec_prepared(prepare_name).cmd_tuples == 1
   end
@@ -84,8 +82,8 @@ module CrudController
   def self.create_table
     prepare_name = 'create_table'
     delete_if_exist(prepare_name)
-    create_table_query = "CREATE TABLE #{@table_name} (id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
-                          created_at timestamp with time zone)"
+    create_table_query = "CREATE TABLE #{TABLE_NAME} (id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
+                          created_at timestamp with time zone, updated_at timestamp with time zone)"
     @conn.prepare(prepare_name, create_table_query)
     @conn.exec_prepared(prepare_name)
   end
